@@ -1,5 +1,7 @@
 import asyncio
+import csv
 import datetime
+import json
 
 import aiohttp
 import bs4
@@ -123,10 +125,24 @@ def time_decorator(function):
     return wrapper
 
 
+def save_to_json():
+    with open('data.json', 'w', encoding='utf-8') as file:
+        json.dump(result, file, ensure_ascii=False, indent=4)
+
+
+def save_to_csv():
+    with open('data.csv', 'w', encoding='utf-8') as file:
+        writer = csv.DictWriter(file, fieldnames=['url', 'img_url', 'price', 'author', 'publisher', 'id', 'pages'])
+
+        writer.writeheader()
+        writer.writerows(result)
+
+
 @time_decorator
 def main():
     asyncio.run(gather_data())
-    print(result)
+    save_to_json()
+    save_to_csv()
 
 
 if __name__ == '__main__':
