@@ -87,9 +87,29 @@ class LabirintParser:
     def run(self):
         soup = self.load_page(self._url)
         self.parse_page(soup)
+        return self._result
+
+
+def get_pagination(url: str):
+    response = requests.get(url)
+    response.raise_for_status()
+    response.encoding = 'utf-8'
+    soup = bs4.BeautifulSoup(response.text, 'lxml')
+
+    count_page = soup.select('a.pagination-number__text')[-1]
+    return int(count_page.text)
+
+
+def main():
+    url = 'https://www.labirint.ru/search/python/?stype=0'
+    count_page = get_pagination(url)
+    result = []
+
+    for page_number in range(1, count_page + 1):
+        labirint = LabirintParser(url + f'&page={page_number}')
+        result += labirint.run()
+    print(result)
 
 
 if __name__ == '__main__':
-    labirint = LabirintParser('https://www.labirint.ru/search/python/?stype=0')
-    labirint.run()
-    print(labirint._result)
+    main()
