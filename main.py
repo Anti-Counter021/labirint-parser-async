@@ -1,10 +1,8 @@
 import asyncio
 import datetime
-import logging
 
 import aiohttp
 import bs4
-
 
 result = []
 url = 'https://www.labirint.ru/search/python/?stype=0'
@@ -34,15 +32,15 @@ class LabirintParser:
     async def parse_card(self, card: bs4.Tag):
         url_block = card.select_one('a.cover')
         if not url_block:
-            logging.error('URL not found')
-            return
-        url = self._domain + url_block.get('href')
+            url = 'URL not found'
+        else:
+            url = self._domain + url_block.get('href')
 
         image = card.select_one('img.book-img-cover')
         if not image:
-            logging.error('Image not found')
-            return
-        img_url = image.get('data-src')
+            img_url = 'Not found image'
+        else:
+            img_url = image.get('data-src')
 
         new_price_block = card.select_one('span.price-val')
         if new_price_block:
@@ -55,27 +53,27 @@ class LabirintParser:
         authors_list = detail.select('div.authors')
 
         if not authors_list:
-            logging.error('Author not found')
-            return
-        authors = [author.text for author in authors_list]
+            authors = 'Authors not found'
+        else:
+            authors = [author.text for author in authors_list]
 
         publisher_block = detail.select_one('div.publisher')
         if not publisher_block:
-            logging.error('Publisher not found')
-            return
-        publisher = publisher_block.text
+            publisher = 'Publisher not found'
+        else:
+            publisher = publisher_block.text
 
         articul_block = detail.select_one('div.articul')
         if not articul_block:
-            logging.error('Articul not found')
-            return
-        articul = articul_block.text
+            articul = 'Articul not found'
+        else:
+            articul = articul_block.text
 
         pages_block = detail.select_one('div.pages2')
         if not pages_block:
-            logging.error('Pages not found')
-            return
-        pages = pages_block.text
+            pages = 'Pages not found'
+        else:
+            pages = pages_block.text
 
         book = {
             'url': url,
@@ -116,11 +114,8 @@ async def gather_data():
 
 
 def main():
-    start_time = datetime.datetime.utcnow()
     asyncio.run(gather_data())
     print(result)
-    end_time = datetime.datetime.utcnow()
-    print(end_time - start_time)
 
 
 if __name__ == '__main__':
