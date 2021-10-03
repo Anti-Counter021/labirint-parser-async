@@ -1,33 +1,37 @@
+import asyncio
+import datetime
 import logging
 
+import aiohttp
 import bs4
-import requests
+
+
+result = []
+url = 'https://www.labirint.ru/search/python/?stype=0'
 
 
 class LabirintParser:
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         self._url = url
-        self._result = []
-        self._session = requests.Session()
-        self._session.headers = {
+        self._domain = 'https://www.labirint.ru'
+
+    async def load_page(self, url: str):
+        headers = {
             'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
             'Accept-Language': 'ru',
         }
-        self._domain = 'https://www.labirint.ru'
+        async with aiohttp.ClientSession() as session:
+            response = await session.get(url=url, headers=headers)
+            response_text = await response.text()
+        return bs4.BeautifulSoup(response_text, 'lxml')
 
-    def load_page(self, url: str):
-        response = self._session.get(url)
-        response.raise_for_status()
-        response.encoding = 'utf-8'
-        return bs4.BeautifulSoup(response.text, 'lxml')
-
-    def parse_page(self, soup: bs4.BeautifulSoup):
+    async def parse_page(self, soup: bs4.BeautifulSoup):
         cards = soup.select('div.card-column')
         for card in cards:
-            self.parse_card(card)
+            await self.parse_card(card)
 
-    def parse_card(self, card: bs4.Tag):
+    async def parse_card(self, card: bs4.Tag):
         url_block = card.select_one('a.cover')
         if not url_block:
             logging.error('URL not found')
@@ -46,7 +50,7 @@ class LabirintParser:
         else:
             price = card.select_one('span.price-old').select_one('span').text
 
-        soup = self.load_page(url)
+        soup = await self.load_page(url)
         detail = soup.select_one('div.product-description')
         authors_list = detail.select('div.authors')
 
@@ -82,33 +86,41 @@ class LabirintParser:
             'id': articul,
             'pages': pages,
         }
-        self._result.append(book)
+        result.append(book)
 
-    def run(self):
-        soup = self.load_page(self._url)
-        self.parse_page(soup)
-        return self._result
+    async def run(self):
+        soup = await self.load_page(self._url)
+        await self.parse_page(soup)
 
 
-def get_pagination(url: str):
-    response = requests.get(url)
-    response.raise_for_status()
-    response.encoding = 'utf-8'
-    soup = bs4.BeautifulSoup(response.text, 'lxml')
+async def gather_data():
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:89.0) Gecko/20100101 Firefox/89.0',
+        'Accept-Language': 'ru',
+    }
+    async with aiohttp.ClientSession() as session:
+        response = await session.get(url=url, headers=headers)
+        response_text = await response.text()
+        soup = bs4.BeautifulSoup(response_text, 'lxml')
 
-    count_page = soup.select('a.pagination-number__text')[-1]
-    return int(count_page.text)
+        count_page = int(soup.select('a.pagination-number__text')[-1].text)
+
+        tasks = []
+
+        for page in range(1, count_page + 1):
+            labirint = LabirintParser(url + f'&page={page}')
+            task = asyncio.create_task(labirint.run())
+            tasks.append(task)
+
+        await asyncio.gather(*tasks)
 
 
 def main():
-    url = 'https://www.labirint.ru/search/python/?stype=0'
-    count_page = get_pagination(url)
-    result = []
-
-    for page_number in range(1, count_page + 1):
-        labirint = LabirintParser(url + f'&page={page_number}')
-        result += labirint.run()
+    start_time = datetime.datetime.utcnow()
+    asyncio.run(gather_data())
     print(result)
+    end_time = datetime.datetime.utcnow()
+    print(end_time - start_time)
 
 
 if __name__ == '__main__':
