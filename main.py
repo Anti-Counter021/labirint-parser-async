@@ -113,6 +113,17 @@ async def gather_data():
         await asyncio.gather(*tasks)
 
 
+def time_decorator(function):
+
+    def wrapper():
+        start_time = datetime.datetime.utcnow()
+        function()
+        end_time = datetime.datetime.utcnow()
+        print(end_time - start_time)
+    return wrapper
+
+
+@time_decorator
 def main():
     asyncio.run(gather_data())
     print(result)
